@@ -24,30 +24,6 @@ module RsMysql
   module Helper
     extend Chef::Mixin::ShellOut
 
-    # Gets the first public IP address of the server if present, or else
-    # returns its first private IP address.
-    #
-    # @param node [Chef::Node] the chef node
-    #
-    # @return [IPAddr] the IP address of the server
-    #
-    def self.get_server_ip(node)
-      instance_ips = Array.new
-
-      if node['cloud']['public_ips']
-        instance_ips += node['cloud']['public_ips']
-      end
-
-      if node['cloud']['private_ips']
-        instance_ips += node['cloud']['private_ips']
-      end
-
-      server_ip = instance_ips.detect { |ip| !ip.nil? && !ip.empty? }
-
-      Chef::Log.info "Server IP: #{server_ip}"
-      IPAddr.new(server_ip)
-    end
-
     # Gets the IP address that the MySQL server will bind to. If `node['rs-mysql']['bind_address']` is set to an IP
     # address or host name, the IP address value of the attribute will be used instead.
     #
@@ -324,41 +300,6 @@ module RsMysql
       RsMysql::Helper.to_dm_name(name)
     end
 
-    # Obtains the run state of the server. It uses the `rs_state` utility to get the current system run state.
-    # Possible values for this command:
-    # - booting
-    # - booting:reboot
-    # - operational
-    # - stranded
-    # - shutting-down:reboot
-    # - shutting-down:terminate
-    # - shutting-down:stop
-    #
-    # @return [String] the current system run state
-    #
-    def self.get_rs_run_state
-      state = shell_out!('rs_state --type=run').stdout.chomp
-      Chef::Log.info "The RightScale run state is: #{state.inspect}"
-      state
-    end
-
-    # Obtains the run state of the server. It uses the `rs_state` utility to get the current system run state.
-    # Possible values for this command:
-    # - booting
-    # - booting:reboot
-    # - operational
-    # - stranded
-    # - shutting-down:reboot
-    # - shutting-down:terminate
-    # - shutting-down:stop
-    #
-    # @return [String] the current system run state
-    #
-    # @see .get_rs_run_state
-    #
-    def get_rs_run_state
-      RsMysql::Helper.get_rs_run_state
-    end
 
     private
 

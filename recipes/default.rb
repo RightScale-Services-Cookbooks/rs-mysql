@@ -21,6 +21,33 @@ marker 'recipe_start_rightscale' do
   template 'rightscale_audit_entry.erb'
 end
 
+# RHEL on some clouds take some time to add RHEL repos.
+# Check and wait a few seconds if RHEL repos are not yet installed.
+if node['platform'] == 'redhat'
+  if !node.attribute?('cloud') || !node['cloud'].attribute?('provider') || !node.attribute?(node['cloud']['provider'])
+    log "Not running on a known cloud - skipping check for RHEL repo"
+  else
+    # Depending on cloud, add string returned by 'yum --cacheonly repolist' to determine if RHEL repo has been added.
+    case node['cloud']['provider']
+    when 'rackspace'
+      repo_id_partial = 'rhel-x86_64-server'
+    else
+      # Check to be skipped since cloud not in list.
+      repo_id_partial = nil
+    end
+
+    unless repo_id_partial.nil?
+      Timeout.timeout(300) do
+        loop do
+          check_rhel_repo = Mixlib::ShellOut.new("yum --cacheonly repolist | grep #{repo_id_partial}").run_command
+          check_rhel_repo.exitstatus == 0 ? break : sleep(1)
+        end
+      end
+    end
+
+  end
+end
+
 # Override the mysql/bind_address attribute with the server IP since
 # node['cloud']['local_ipv4'] returns an inconsistent type on AWS (String) and Google (Array) clouds
 bind_ip_address = RsMysql::Helper.get_bind_ip_address(node)
@@ -57,8 +84,11 @@ node.override['mysql']['tunable']['log_bin'] = "#{node['mysql']['data_dir']}/mys
 Chef::Log.info "Overriding mysql/tunable/binlog_format to 'MIXED'"
 node.override['mysql']['tunable']['binlog_format'] = 'MIXED'
 
-# Convert the server IP to an integer and use it for the server-id attribute in my.cnf
-server_id = RsMysql::Helper.get_server_ip(node).to_i
+# Drop first 2 hex numbers from MAC address to have a 32-bit integer and use it for the server-id attribute in my.cnf.
+# This is used since MAC addresses within the same network must be different to correctly talk to each other.
+# Some clouds use the same public IP with different ports for multiple instances, so IP is not unique.
+server_id = node['macaddress'].split(/\W/)[2..-1].join.to_i(16)
+
 Chef::Log.info "Overriding mysql/tunable/server_id to '#{server_id}'"
 node.override['mysql']['tunable']['server_id'] = server_id
 

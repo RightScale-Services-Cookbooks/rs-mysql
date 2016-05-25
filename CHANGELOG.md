@@ -3,6 +3,22 @@ rs-mysql Cookbook CHANGELOG
 
 This file is used to list changes made in each version of the rs-mysql cookbook.
 
+v1.1.9
+------
+
+- No longer use IP address to create server_id since some clouds use the same IP but forward using ports.
+
+v1.1.8
+------
+
+- Updated lvm cookbook dependency version to 1.3.6.
+- Set default filesystem on RHEL 7 platform_family to xfs.
+
+v1.1.7
+------
+
+- On RHEL, depending on cloud, check and wait for RHEL repos to be installed.
+
 v1.1.6
 ------
 
